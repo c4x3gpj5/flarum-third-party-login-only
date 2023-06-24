@@ -1,30 +1,20 @@
 {
-    "name": "v17development/flarum-third-party-login-only",
-    "description": "Only allow login and sign ups from oAuth extensions.",
+    "name": "c4x3gpj5/flarum-third-party-logout-only",
+    "description": "Only allow logout from oAuth extensions.",
     "type": "flarum-extension",
     "license": "MIT",
     "authors": [
         {
-            "name": "V17 Development",
-            "email": "info@v17.dev"
+            "name": "c4x3gpj5",
+            "email": "c4x3gpj5@gmail.com"
         }
     ],
-    "homepage": "https://v17.dev/projects/flarum-third-party-login-only",
-    "support": {
-        "forum": "https://discuss.flarum.org/d/28424",
-        "docs": "https://community.v17.dev/knowledgebase/category/flarum-third-party-login-only"
-    },
-    "autoload": {
-        "psr-4": {
-            "V17Development\\FlarumThirdPartyLoginOnly\\": "src/"
-        }
-    },
     "require": {
         "flarum/core": "^1.0.0"
     },
     "extra": {
         "flarum-extension": {
-            "title": "Third party login only",
+            "title": "Third party logout only",
             "category": "feature",
             "icon": {
                 "name": "fas fa-sign-in-alt",
