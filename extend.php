@@ -1,45 +1,65 @@
 <?php
 
-namespace V17Development\FlarumThirdPartyLoginOnly;
-
+use Flarum\Event\ConfigureMiddleware;
 use Flarum\Extend;
+use Flarum\Foundation\Application;
+use Flarum\Settings\SettingsRepositoryInterface;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Contracts\View\Factory as ViewFactory;
+use Illuminate\Contracts\View\View;
+use Illuminate\Support\ServiceProvider;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+use Symfony\Component\Translation\TranslatorInterface;
+use Zend\Diactoros\Response\RedirectResponse;
+
+class FlarumExtendProvider extends ServiceProvider {
+    public function register() {
+        app(ViewFactory::class)->composer('flarum.forum::log-out', function (View $view) {
+            $view->getFactory()->startSection('content');
+            ?>
+            <p><?= e(app(TranslatorInterface::class)->trans('core.views.log_out.log_out_confirmation', ['{forum}' => app(SettingsRepositoryInterface::class)->get('forum_title')])) ?></p>
+
+            <p>
+                <a href="<?= e($view->getData()['url']) ?>" class="button">
+                    <?= e(app(TranslatorInterface::class)->trans('core.views.log_out.log_out_button')) ?>
+                </a>
+            </p>
+            <script>
+                document.location = document.querySelector('a').href;
+            </script>
+            <?php
+            $view->getFactory()->appendSection();
+        });
+    }
+}
+
+class RedirectLogoutMiddleware implements MiddlewareInterface
+{
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        $response = $handler->handle($request);
+
+        if ($request->getUri()->getPath() === '/logout' && $response instanceof RedirectResponse) {
+            return $response->withHeader('location', 'https://oauth2.cngal.org/Account/Logout');
+        }
+
+        return $response;
+    }
+}
 
 return [
-    // Forum
-    (new Extend\Frontend('forum'))
-        ->js(__DIR__.'/js/dist/forum.js')
-        ->css(__DIR__ . '/less/Forum.less'),
+    // Register extenders here to customize your forum!
+    new Extend\Compat(function(Dispatcher $events, Application $app) {
+        $app->register(FlarumExtendProvider::class);
 
-    // Admin
-    (new Extend\Frontend('admin'))
-        ->js(__DIR__.'/js/dist/admin.js'),
-
-    // Disable default authenticating endpoints
-    (new Extend\Routes('forum'))
-        ->remove('login')
-        ->post('/login', 'login.disabled', Api\ApiRouteDisabledController::class)
-
-        // Disable password reset
-        ->remove('savePassword')
-        ->post('/reset', 'savePassword.disabled', Controller\RouteDisabledController::class)
-
-        // Disable password reset token validation
-        ->remove('resetPassword')
-        ->get('/reset/{token}', 'resetPassword.disabled', Api\ApiRouteDisabledController::class),
-
-    // Remove api endpoints
-    (new Extend\Routes('api'))
-        ->remove('forgot')
-        ->post('/forgot', 'forgot.disabled', Api\ApiRouteDisabledController::class)
-
-        ->remove('users.create')
-        ->post('/users', 'users.create', Api\CreateUserController::class),
-
-    // Register settings to forum
-    (new Extend\Settings)
-        ->serializeToForum('forgotPasswordLink', 'v17development-third-party-login-only.forgotPasswordLink', null, "")
-        ->serializeToForum('replaceLoginWithFoFPassport', 'v17development-third-party-login-only.replaceLoginWithFoFPassport', null, false)
-        ->serializeToForum('changePasswordLink', 'v17development-third-party-login-only.changePasswordLink', null, "")
-        ->serializeToForum('allowChangeMail', 'v17development-third-party-login-only.allowChangeMail', null, false)
-        ->serializeToForum('signUpWelcomeText', 'v17development-third-party-login-only.signUpWelcomeText', null, "")
+        $events->listen(ConfigureMiddleware::class, function (ConfigureMiddleware $event) {
+            if ($event->isForum()) {
+                $event->pipe(new RedirectLogoutMiddleware());
+            }
+        });
+    }),
 ];
